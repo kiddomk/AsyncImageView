@@ -655,8 +655,16 @@ NSString *const AsyncImageErrorKey = @"error";
         if (!self.progressView) {
             
             // Progress view
-            UIActivityIndicatorView *activitysize = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:self.activityIndicatorStyle];
-            self.progressView = [[DACircularProgressView alloc] initWithFrame:activitysize.frame];
+            //UIActivityIndicatorView *activitysize = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:self.activityIndicatorStyle];
+            
+            //self.progressView = [[DACircularProgressView alloc] initWithFrame:activitysize.frame];
+            
+            CGFloat imageWidth=fminf(self.bounds.size.width, self.bounds.size.height);
+            CGFloat progressViewWidth=imageWidth/9;
+            CGRect frame= CGRectMake(0, 0, progressViewWidth, progressViewWidth);
+            
+            self.progressView = [[DACircularProgressView alloc] initWithFrame:frame];
+            
             self.progressView.center = CGPointMake(self.bounds.size.width / 2.0f, self.bounds.size.height / 2.0f);
             [self.progressView setProgress:0.0f];
             self.progressView.thicknessRatio = 0.1; //SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7") ? 0.1 : 0.2;
@@ -681,24 +689,21 @@ NSString *const AsyncImageErrorKey = @"error";
 
 - (void)setImage:(UIImage *)image
 {
-    if (image != self.image && self.crossfadeDuration)
-    {
-        //jump through a few hoops to avoid QuartzCore framework dependency
-        CAAnimation *animation = [NSClassFromString(@"CATransition") animation];
-        [animation setValue:@"kCATransitionFade" forKey:@"type"];
-        animation.duration = self.crossfadeDuration;
-        [self.layer addAnimation:animation forKey:nil];
-    }
-    super.image = image;
-    _progressView.alpha = 0;
-    [self.progressView removeFromSuperview];
     
-//    if (!self.customActivityView) {
-//        [self.activityView stopAnimating];
-//    }
-//    else {
-//        [self.customActivityView stopAnimating];
-//    }
+        if (image != self.image && self.crossfadeDuration)
+        {
+            if (_progressView.progress==1.0f||_progressView.progress==0) {
+            //jump through a few hoops to avoid QuartzCore framework dependency
+            CAAnimation *animation = [NSClassFromString(@"CATransition") animation];
+            [animation setValue:@"kCATransitionFade" forKey:@"type"];
+            animation.duration = self.crossfadeDuration;
+            [self.layer addAnimation:animation forKey:nil];
+            }
+        }
+        super.image = image;
+        _progressView.alpha = 0;
+        [self.progressView removeFromSuperview];
+    
 }
 
 -(void)updateProgress:(NSNumber *)percent {
