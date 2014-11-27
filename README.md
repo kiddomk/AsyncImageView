@@ -1,3 +1,8 @@
+Latest Update:
+-------------------
+-Getting progress update
+-Replace UIActivityIndicator with [DACircularProgress](https://github.com/danielamitay/DACircularProgress)
+
 Purpose
 --------------
 

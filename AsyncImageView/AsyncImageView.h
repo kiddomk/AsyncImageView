@@ -32,6 +32,7 @@
 
 
 #import <UIKit/UIKit.h>
+#import "DACircularProgressView.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wobjc-missing-property-synthesis"
 

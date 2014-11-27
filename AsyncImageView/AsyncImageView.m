@@ -62,6 +62,7 @@ NSString *const AsyncImageErrorKey = @"error";
 @property (nonatomic, assign) SEL failure;
 @property (nonatomic, getter = isLoading) BOOL loading;
 @property (nonatomic, getter = isCancelled) BOOL cancelled;
+@property (nonatomic) float expectedLength;
 
 - (AsyncImageConnection *)initWithURL:(NSURL *)URL
                                 cache:(NSCache *)cache
@@ -205,15 +206,21 @@ NSString *const AsyncImageErrorKey = @"error";
 	}
 }
 
-- (void)connection:(__unused NSURLConnection *)connection didReceiveResponse:(__unused NSURLResponse *)response
+- (void)connection:(__unused NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response
 {
     self.data = [NSMutableData data];
+    self.expectedLength = response.expectedContentLength;
 }
 
 - (void)connection:(__unused NSURLConnection *)connection didReceiveData:(NSData *)data
 {
     //add data
     [self.data appendData:data];
+
+    double percent = (double)self.data.length / self.expectedLength;
+    SEL selector = NSSelectorFromString(@"updateProgress:");
+    if ([self.target respondsToSelector:selector])
+        [self.target performSelector:selector withObject:@(percent) afterDelay:0];
 }
 
 - (void)connectionDidFinishLoading:(__unused NSURLConnection *)connection
@@ -577,7 +584,7 @@ NSString *const AsyncImageErrorKey = @"error";
 
 - (void)setImageURL:(NSURL *)imageURL
 {
-	[[AsyncImageLoader sharedLoader] loadImageWithURL:imageURL target:self action:@selector(setImage:)];
+    [[AsyncImageLoader sharedLoader] loadImageWithURL:imageURL target:self action:@selector(setImage:)];
 }
 
 - (NSURL *)imageURL
@@ -589,9 +596,9 @@ NSString *const AsyncImageErrorKey = @"error";
 
 
 @interface AsyncImageView ()
-
+-(void)updateProgress:(NSNumber *)percent;
+@property (nonatomic, strong) DACircularProgressView *progressView;
 @property (nonatomic, strong) UIActivityIndicatorView *activityView;
-
 @end
 
 
@@ -622,6 +629,7 @@ NSString *const AsyncImageErrorKey = @"error";
     return self;
 }
 
+
 - (void)setImageURL:(NSURL *)imageURL
 {
     UIImage *image = [[AsyncImageLoader sharedLoader].cache objectForKey:imageURL];
@@ -633,23 +641,42 @@ NSString *const AsyncImageErrorKey = @"error";
     super.imageURL = imageURL;
     if (self.showActivityIndicator && !self.image && imageURL)
     {
-        if (self.activityView == nil)
-        {
-            self.activityView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:self.activityIndicatorStyle];
-            self.activityView.hidesWhenStopped = YES;
-            self.activityView.center = CGPointMake(self.bounds.size.width / 2.0f, self.bounds.size.height / 2.0f);
-            self.activityView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin;
-            [self addSubview:self.activityView];
+
+//            if (self.activityView == nil)
+//            {
+//                self.activityView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:self.activityIndicatorStyle];
+//                self.activityView.hidesWhenStopped = YES;
+//                self.activityView.center = CGPointMake(self.bounds.size.width / 2.0f, self.bounds.size.height / 2.0f);
+//                self.activityView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin;
+//                [self addSubview:self.activityView];
+//            }
+//            [self.activityView startAnimating];
+        
+        if (!self.progressView) {
+            
+            // Progress view
+            UIActivityIndicatorView *activitysize = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:self.activityIndicatorStyle];
+            self.progressView = [[DACircularProgressView alloc] initWithFrame:activitysize.frame];
+            self.progressView.center = CGPointMake(self.bounds.size.width / 2.0f, self.bounds.size.height / 2.0f);
+            [self.progressView setProgress:0.0f];
+            self.progressView.thicknessRatio = 0.1; //SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7") ? 0.1 : 0.2;
+            self.progressView.roundedCorners = NO;  //SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7") ? NO  : YES;
+            self.progressView.trackTintColor    = [UIColor clearColor];
+            self.progressView.progressTintColor = [UIColor blackColor];
+            self.progressView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin;
+            [self addSubview:self.progressView];
         }
-        [self.activityView startAnimating];
+        
     }
 }
 
 - (void)setActivityIndicatorStyle:(UIActivityIndicatorViewStyle)style
 {
 	_activityIndicatorStyle = style;
-	[self.activityView removeFromSuperview];
-	self.activityView = nil;
+//	[self.activityView removeFromSuperview];
+//	self.activityView = nil;
+    [self.progressView removeFromSuperview];
+     self.progressView=nil;
 }
 
 - (void)setImage:(UIImage *)image
@@ -663,7 +690,21 @@ NSString *const AsyncImageErrorKey = @"error";
         [self.layer addAnimation:animation forKey:nil];
     }
     super.image = image;
-    [self.activityView stopAnimating];
+    _progressView.alpha = 0;
+    [self.progressView removeFromSuperview];
+    
+//    if (!self.customActivityView) {
+//        [self.activityView stopAnimating];
+//    }
+//    else {
+//        [self.customActivityView stopAnimating];
+//    }
+}
+
+-(void)updateProgress:(NSNumber *)percent {
+    if (_progressView.progress < [percent floatValue]) {
+        [_progressView setProgress:[percent floatValue] animated:YES];
+    }
 }
 
 - (void)dealloc
